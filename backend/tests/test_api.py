@@ -176,3 +176,38 @@ def test_upload_embed_failure_503_keeps_previous(client, store, monkeypatch):
 def test_cors_allows_configured_origin(client):
     r = client.get("/health", headers={"Origin": "http://localhost:3002"})
     assert r.headers.get("access-control-allow-origin") == "http://localhost:3002"
+
+
+def _unindexed_client(monkeypatch, embeddings):
+    from fastapi.testclient import TestClient
+
+    s = IndexStore(embeddings=embeddings)  # startup load failed -> no index
+    main_mod.app.dependency_overrides[main_mod.get_store] = lambda: s
+    return TestClient(main_mod.app), s
+
+
+def test_chat_unindexed_retries_sample_load_then_answers(monkeypatch, chat_mock):
+    c, s = _unindexed_client(monkeypatch, FakeEmbeddings())
+    try:
+        assert not s.is_ready()
+        set_hits(monkeypatch, [("Returns within 30 days.", 0.9)])
+        r = c.post("/chat", json={"message": "returns?", "history": []})
+        assert r.status_code == 200
+        assert s.is_ready()
+        assert s.status()[0] == "sample_faq.md"
+    finally:
+        main_mod.app.dependency_overrides.clear()
+
+
+def test_chat_unindexed_still_failing_returns_503(monkeypatch, chat_mock):
+    class Boom(FakeEmbeddings):
+        def embed_documents(self, texts):
+            raise RuntimeError("ollama down")
+
+    c, s = _unindexed_client(monkeypatch, Boom())
+    try:
+        r = c.post("/chat", json={"message": "returns?", "history": []})
+        assert r.status_code == 503
+        assert chat_mock.calls == 0
+    finally:
+        main_mod.app.dependency_overrides.clear()

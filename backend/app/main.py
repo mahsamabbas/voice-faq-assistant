@@ -93,6 +93,7 @@ def chat(req: ChatRequest, store: IndexStore = Depends(get_store)):
         raise HTTPException(status_code=400, detail="Message must not be blank.")
     history = trim_history(req.history)
     try:
+        store.ensure_ready()
         decision = decide_or_refuse(store, message, history)
     except Exception:
         logger.exception("Retrieval failed")

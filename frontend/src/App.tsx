@@ -159,6 +159,7 @@ export default function App() {
           },
           onError: (message) => {
             if (!current()) return
+            cancelSpeech()
             setError(message)
             setMessages((all) =>
               all.filter((m) => !(m.id === assistantId && m.text === '')),

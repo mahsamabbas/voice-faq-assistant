@@ -19,6 +19,8 @@ def validate_faq_bytes(filename: str, raw: bytes) -> str:
         text = raw.decode("utf-8")
     except UnicodeDecodeError as exc:
         raise ValidationError("File must be valid UTF-8 text.") from exc
+    if not text.strip():
+        raise ValidationError("File is empty.")
     length = len(text)
     if length < MIN_CHARS:
         raise ValidationError(f"File must be at least {MIN_CHARS} characters.")

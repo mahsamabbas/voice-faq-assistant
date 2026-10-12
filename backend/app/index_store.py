@@ -76,6 +76,18 @@ class IndexStore:
         text = SAMPLE_FAQ_PATH.read_text(encoding="utf-8")
         self.replace_with_text(SAMPLE_FILENAME, text, source="sample")
 
+    def is_ready(self) -> bool:
+        with self._lock:
+            return self._vectorstore is not None
+
+    def ensure_ready(self) -> None:
+        """Make sure an index exists; retry loading the sample if startup failed.
+
+        Raises whatever load_sample raises (e.g. Ollama unavailable).
+        """
+        if not self.is_ready():
+            self.load_sample()
+
     def retrieve(self, query: str, k: int = TOP_K) -> list[tuple[str, float]]:
         with self._lock:
             store = self._vectorstore

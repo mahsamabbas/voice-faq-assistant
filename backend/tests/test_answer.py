@@ -120,3 +120,30 @@ def test_build_search_text_includes_recent_user_context():
     assert "Tell me about returns" in text
     assert "Returns within 30 days." not in text
     assert build_search_text("solo", []) == "solo"
+
+
+def test_model_refusal_sentence_marks_done_refused(monkeypatch):
+    class FakeChat:
+        def stream(self, messages):
+            for part in [REFUSAL_SENTENCE[:10], REFUSAL_SENTENCE[10:]]:
+                chunk = MagicMock()
+                chunk.content = part
+                yield chunk
+
+    monkeypatch.setattr("app.answer.get_chat", lambda: FakeChat())
+    ctx = GroundedContext(excerpts=["x"], message="q?", history=[])
+    frames = list(stream_grounded_answer(ctx))
+    assert 'event: done\ndata: {"refused": true}' in "".join(frames)
+
+
+def test_normal_answer_marks_done_not_refused(monkeypatch):
+    class FakeChat:
+        def stream(self, messages):
+            chunk = MagicMock()
+            chunk.content = "30 days."
+            yield chunk
+
+    monkeypatch.setattr("app.answer.get_chat", lambda: FakeChat())
+    ctx = GroundedContext(excerpts=["x"], message="q?", history=[])
+    joined = "".join(stream_grounded_answer(ctx))
+    assert '"refused": false' in joined.split("event: done")[1]

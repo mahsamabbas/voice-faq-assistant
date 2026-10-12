@@ -21,3 +21,8 @@ def test_rejects_too_short():
 def test_accepts_valid_md():
     text = validate_faq_bytes("faq.md", ("A" * 250).encode("utf-8"))
     assert len(text) == 250
+
+
+def test_rejects_whitespace_only():
+    with pytest.raises(ValidationError):
+        validate_faq_bytes("faq.txt", b" \n\t " * 100)

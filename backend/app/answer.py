@@ -70,12 +70,17 @@ def _build_messages(ctx: GroundedContext) -> list[tuple[str, str]]:
 
 def stream_grounded_answer(ctx: GroundedContext) -> Iterator[str]:
     yield format_sse("meta", {"refused": False})
+    parts: list[str] = []
     try:
         for chunk in get_chat().stream(_build_messages(ctx)):
             delta = chunk.content
             if isinstance(delta, str) and delta:
+                parts.append(delta)
                 yield format_sse("token", {"text": delta})
     except Exception:
         yield format_sse("error", {"detail": "Answer service unavailable"})
         return
-    yield format_sse("done", {"refused": False})
+    # The model may itself decline (per the system prompt); label that as refused.
+    full = "".join(parts).strip()
+    refused = bool(full) and full.startswith(REFUSAL_SENTENCE)
+    yield format_sse("done", {"refused": refused})
