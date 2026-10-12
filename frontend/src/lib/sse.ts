@@ -5,7 +5,7 @@ export function parseSseBlock(block: string): { event: string; data: unknown } |
   let event = 'message'
   let dataLine = ''
 
-  for (const line of block.split('\n')) {
+  for (const line of block.replace(/\r\n/g, '\n').split('\n')) {
     if (line.startsWith('event:')) {
       event = line.slice('event:'.length).trim()
     } else if (line.startsWith('data:')) {
@@ -27,7 +27,7 @@ export function consumeSseBuffer(buffer: string): {
   rest: string
 } {
   const events: Array<{ event: string; data: unknown }> = []
-  let rest = buffer
+  let rest = buffer.replace(/\r\n/g, '\n')
 
   while (true) {
     const sep = rest.indexOf('\n\n')
