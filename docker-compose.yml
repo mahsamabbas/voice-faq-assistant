@@ -1,0 +1,31 @@
+# EchoFAQ ports:
+#   Frontend → http://localhost:3002
+#   API      → http://localhost:8002
+# Requires Ollama running on the host (http://localhost:11434).
+services:
+  backend:
+    build:
+      context: ./backend
+    ports:
+      - "${BACKEND_PORT:-8002}:8000"
+    environment:
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
+      OLLAMA_CHAT_MODEL: ${OLLAMA_CHAT_MODEL:-qwen2.5:7b}
+      OLLAMA_EMBED_MODEL: ${OLLAMA_EMBED_MODEL:-nomic-embed-text}
+      SIMILARITY_CUTOFF: ${SIMILARITY_CUTOFF:-0.45}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3002,http://127.0.0.1:3002}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # Browser → host-mapped API port (baked at build time)
+        VITE_API_BASE: ${VITE_API_BASE:-http://localhost:8002}
+    ports:
+      - "${FRONTEND_PORT:-3002}:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
