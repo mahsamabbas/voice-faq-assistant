@@ -16,6 +16,12 @@ export interface Status {
   ollama_ok: boolean
 }
 
+export interface FaqDocument {
+  filename: string
+  source: string
+  text: string
+}
+
 export interface ChatHandlers {
   onToken: (text: string) => void
   onDone: (refused: boolean) => void
@@ -38,6 +44,12 @@ export async function getStatus(): Promise<Status> {
   const res = await fetch(`${API_BASE}/status`)
   if (!res.ok) throw new Error(await errorMessage(res, 'Could not load FAQ status.'))
   return (await res.json()) as Status
+}
+
+export async function getDocument(): Promise<FaqDocument> {
+  const res = await fetch(`${API_BASE}/document`)
+  if (!res.ok) throw new Error(await errorMessage(res, 'Could not load FAQ preview.'))
+  return (await res.json()) as FaqDocument
 }
 
 export async function uploadFaq(file: File): Promise<Status> {

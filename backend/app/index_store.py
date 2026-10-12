@@ -37,6 +37,7 @@ class IndexStore:
         self._embeddings = embeddings
         self._lock = threading.Lock()
         self._vectorstore: FAISS | None = None
+        self._text: str = ""
         self._filename: str = ""
         self._source: Source = "sample"
 
@@ -69,6 +70,7 @@ class IndexStore:
         store = self._build(text)
         with self._lock:
             self._vectorstore = store
+            self._text = text
             self._filename = filename
             self._source = source
 
@@ -104,3 +106,8 @@ class IndexStore:
     def status(self) -> tuple[str, Source]:
         with self._lock:
             return self._filename, self._source
+
+    def document(self) -> tuple[str, Source, str]:
+        """Return (filename, source, full FAQ text) for the active file."""
+        with self._lock:
+            return self._filename, self._source, self._text

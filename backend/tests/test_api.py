@@ -159,6 +159,23 @@ def test_valid_upload_swaps_index(client, monkeypatch):
     assert client.get("/status").json()["filename"] == "mine.txt"
 
 
+def test_document_returns_active_faq_text(client, monkeypatch):
+    monkeypatch.setattr(main_mod, "ollama_ok", lambda: True)
+    sample = client.get("/document")
+    assert sample.status_code == 200
+    body = sample.json()
+    assert body["filename"] == "sample_faq.md"
+    assert body["source"] == "sample"
+    assert "30 days" in body["text"]
+
+    uploaded = ("Refunds are issued within five days of approval. " * 10).encode()
+    client.post("/upload", files={"file": ("mine.txt", uploaded, "text/plain")})
+    doc = client.get("/document").json()
+    assert doc["filename"] == "mine.txt"
+    assert doc["source"] == "upload"
+    assert "Refunds are issued" in doc["text"]
+
+
 def test_upload_embed_failure_503_keeps_previous(client, store, monkeypatch):
     monkeypatch.setattr(main_mod, "ollama_ok", lambda: True)
 

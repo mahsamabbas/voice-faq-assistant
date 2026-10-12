@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { getStatus, sendChat, trimHistory, uploadFaq } from './lib/api'
-import type { HistoryMessage, Status } from './lib/api'
+import { useCallback, useEffect, useId, useRef, useState } from 'react'
+import { getDocument, getStatus, sendChat, trimHistory, uploadFaq } from './lib/api'
+import type { FaqDocument, HistoryMessage, Status } from './lib/api'
 import { pullSentences } from './lib/sentences'
 import {
   cancelSpeech,
@@ -30,7 +30,11 @@ export default function App() {
   const [error, setError] = useState('')
   const [faq, setFaq] = useState<Status | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [previewOpen, setPreviewOpen] = useState(false)
+  const [previewLoading, setPreviewLoading] = useState(false)
+  const [previewDoc, setPreviewDoc] = useState<FaqDocument | null>(null)
   const supported = speechSupported()
+  const previewTitleId = useId()
 
   const mutedRef = useRef(muted)
   const sessionRef = useRef(false)
@@ -41,6 +45,7 @@ export default function App() {
   const nextId = useRef(1)
   const fileRef = useRef<HTMLInputElement>(null)
   const logRef = useRef<HTMLDivElement>(null)
+  const previewCloseRef = useRef<HTMLButtonElement>(null)
   const beginListeningRef = useRef<() => void>(() => {})
 
   useEffect(() => {
@@ -60,6 +65,20 @@ export default function App() {
     if (el) el.scrollTop = el.scrollHeight
   }, [messages, partial])
 
+  useEffect(() => {
+    if (!previewOpen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setPreviewOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    document.body.style.overflow = 'hidden'
+    previewCloseRef.current?.focus()
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      document.body.style.overflow = ''
+    }
+  }, [previewOpen])
+
   useEffect(
     () => () => {
       sessionRef.current = false
@@ -69,6 +88,21 @@ export default function App() {
     },
     [],
   )
+
+  const openPreview = async () => {
+    setPreviewOpen(true)
+    setPreviewLoading(true)
+    setPreviewDoc(null)
+    setError('')
+    try {
+      setPreviewDoc(await getDocument())
+    } catch (err) {
+      setPreviewOpen(false)
+      setError(err instanceof Error ? err.message : 'Could not load FAQ preview.')
+    } finally {
+      setPreviewLoading(false)
+    }
+  }
 
   const stopEverything = useCallback(() => {
     turnRef.current += 1
@@ -343,15 +377,25 @@ export default function App() {
           <h1 className="wordmark">
             Echo<em>FAQ</em>
           </h1>
-          <p className="brand-meta">
-            Voice answers grounded in one FAQ file.
-            {faq ? (
-              <>
-                {' '}
-                <strong>{faq.filename}</strong>
-              </>
-            ) : null}
-          </p>
+          <div className="brand-meta">
+            <p>
+              Voice answers grounded in one FAQ file.
+              {faq ? (
+                <>
+                  {' '}
+                  <strong>{faq.filename}</strong>
+                </>
+              ) : null}
+            </p>
+            <button
+              type="button"
+              className="ghost preview-btn"
+              onClick={() => void openPreview()}
+              disabled={!faq}
+            >
+              Preview FAQ
+            </button>
+          </div>
         </header>
 
         <main className="stage">
@@ -478,6 +522,50 @@ export default function App() {
           </form>
         </nav>
       </div>
+
+      {previewOpen && (
+        <div
+          className="preview-backdrop"
+          role="presentation"
+          onClick={() => setPreviewOpen(false)}
+        >
+          <div
+            className="preview-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={previewTitleId}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <header className="preview-head">
+              <div>
+                <p className="preview-kicker">Active FAQ</p>
+                <h2 id={previewTitleId} className="preview-title">
+                  {previewDoc?.filename ?? (previewLoading ? 'Loading…' : 'FAQ')}
+                </h2>
+                {previewDoc && (
+                  <p className="preview-source">
+                    Source: {previewDoc.source === 'upload' ? 'Uploaded file' : 'Sample FAQ'}
+                  </p>
+                )}
+              </div>
+              <button
+                ref={previewCloseRef}
+                type="button"
+                className="ghost"
+                onClick={() => setPreviewOpen(false)}
+              >
+                Close
+              </button>
+            </header>
+            <div className="preview-body">
+              {previewLoading && <p className="preview-loading">Loading FAQ text…</p>}
+              {!previewLoading && previewDoc && (
+                <pre className="preview-text">{previewDoc.text}</pre>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }

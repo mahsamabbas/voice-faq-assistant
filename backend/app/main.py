@@ -15,7 +15,7 @@ from app.answer import (
 )
 from app.config import CORS_ORIGINS
 from app.index_store import IndexStore
-from app.models import ChatRequest, RefusalResponse, StatusResponse
+from app.models import ChatRequest, DocumentResponse, RefusalResponse, StatusResponse
 from app.ollama_clients import get_chat, get_embeddings, ollama_ok
 from app.validation import ValidationError, validate_faq_bytes
 
@@ -67,6 +67,19 @@ def health() -> dict:
 @app.get("/status", response_model=StatusResponse)
 def status(store: IndexStore = Depends(get_store)) -> StatusResponse:
     return _status(store)
+
+
+@app.get("/document", response_model=DocumentResponse)
+def document(store: IndexStore = Depends(get_store)) -> DocumentResponse:
+    try:
+        store.ensure_ready()
+    except Exception:
+        logger.exception("Could not load FAQ document")
+        raise HTTPException(status_code=503, detail=OLLAMA_UNAVAILABLE)
+    filename, source, text = store.document()
+    if not text:
+        raise HTTPException(status_code=503, detail="No FAQ document is loaded.")
+    return DocumentResponse(filename=filename, source=source, text=text)
 
 
 @app.post("/upload", response_model=StatusResponse)

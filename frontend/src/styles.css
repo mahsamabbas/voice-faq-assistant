@@ -113,8 +113,11 @@ body {
 }
 
 .brand-meta {
-  margin: 0;
-  max-width: 18rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.65rem;
+  max-width: 20rem;
   text-align: right;
   font-size: 0.92rem;
   font-weight: 500;
@@ -122,10 +125,16 @@ body {
   color: var(--ink-soft);
 }
 
+.brand-meta p { margin: 0; }
+
 .brand-meta strong {
   display: block;
   color: var(--ink);
   font-weight: 700;
+}
+
+.preview-btn {
+  background: rgba(255, 255, 255, 0.65);
 }
 
 /* Main stage: mic + conversation as one composition */
@@ -144,7 +153,108 @@ body {
     grid-template-columns: 1fr;
     grid-template-rows: auto minmax(14rem, 1fr);
   }
-  .brand-meta { text-align: left; max-width: none; }
+  .brand-meta {
+    align-items: flex-start;
+    text-align: left;
+    max-width: none;
+  }
+}
+
+/* FAQ preview modal */
+.preview-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(16, 24, 32, 0.45);
+  backdrop-filter: blur(4px);
+  animation: fade-in 0.18s ease both;
+}
+
+.preview-modal {
+  width: min(42rem, 100%);
+  max-height: min(88vh, 44rem);
+  display: flex;
+  flex-direction: column;
+  background: var(--foam);
+  border: 1px solid var(--line);
+  box-shadow: 0 24px 60px rgba(16, 24, 32, 0.22);
+  animation: rise-in 0.22s ease both;
+}
+
+.preview-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.1rem 1.25rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.preview-kicker {
+  margin: 0 0 0.25rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.preview-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.45rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+}
+
+.preview-source {
+  margin: 0.3rem 0 0;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--ink-soft);
+}
+
+.preview-body {
+  min-height: 0;
+  overflow: auto;
+  padding: 1.1rem 1.25rem 1.35rem;
+}
+
+.preview-loading {
+  margin: 0;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.preview-text {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-family: var(--font-ui);
+  font-size: 0.98rem;
+  font-weight: 500;
+  line-height: 1.55;
+  color: var(--ink);
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(0.6rem); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .preview-backdrop,
+  .preview-modal {
+    animation: none !important;
+  }
 }
 
 .mic-panel {

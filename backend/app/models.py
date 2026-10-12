@@ -9,6 +9,12 @@ class StatusResponse(BaseModel):
     ollama_ok: bool
 
 
+class DocumentResponse(BaseModel):
+    filename: str
+    source: Literal["sample", "upload"]
+    text: str
+
+
 class ChatMessage(BaseModel):
     role: Literal["user", "assistant"]
     content: str
