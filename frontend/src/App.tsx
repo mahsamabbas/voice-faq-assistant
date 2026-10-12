@@ -22,7 +22,7 @@ interface Message {
 
 const STATUS: Record<OrbState, string> = {
   idle: 'Tap the mic — ask anything in your FAQ',
-  listening: 'Listening… tap again when you’re done',
+  listening: 'Listening… pause when you’re done and I’ll answer',
   thinking: 'Thinking…',
   speaking: 'Speaking the answer…',
 }
