@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
+import ReactMarkdown from 'react-markdown'
 import { getDocument, getStatus, sendChat, trimHistory, uploadFaq } from './lib/api'
 import type { FaqDocument, HistoryMessage, Status } from './lib/api'
 import { pullSentences } from './lib/sentences'
@@ -560,7 +561,9 @@ export default function App() {
             <div className="preview-body">
               {previewLoading && <p className="preview-loading">Loading FAQ text…</p>}
               {!previewLoading && previewDoc && (
-                <pre className="preview-text">{previewDoc.text}</pre>
+                <div className="preview-md">
+                  <ReactMarkdown>{previewDoc.text}</ReactMarkdown>
+                </div>
               )}
             </div>
           </div>
