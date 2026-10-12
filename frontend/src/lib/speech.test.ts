@@ -1,4 +1,11 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+
+vi.mock('./tts', () => ({
+  cancelNeuralTts: vi.fn(),
+  speakNeural: vi.fn(async () => false),
+  warmNeuralTts: vi.fn(),
+}))
+
 import { pickFemaleVoice } from './speech'
 
 function voice(name: string, lang = 'en-US'): SpeechSynthesisVoice {
@@ -6,13 +13,13 @@ function voice(name: string, lang = 'en-US'): SpeechSynthesisVoice {
 }
 
 describe('pickFemaleVoice', () => {
-  it('prefers Samantha when available', () => {
+  it('prefers Google US English when available', () => {
     const picked = pickFemaleVoice([
-      voice('Google US English'),
       voice('Samantha'),
+      voice('Google US English'),
       voice('Alex'),
     ])
-    expect(picked?.name).toBe('Samantha')
+    expect(picked?.name).toBe('Google US English')
   })
 
   it('skips clearly male names when possible', () => {

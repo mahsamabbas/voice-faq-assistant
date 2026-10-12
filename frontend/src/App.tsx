@@ -8,6 +8,7 @@ import {
   createRecognizer,
   speakSentences,
   speechSupported,
+  warmNeuralTts,
 } from './lib/speech'
 import type { Recognizer } from './lib/speech'
 
@@ -59,6 +60,8 @@ export default function App() {
 
   useEffect(() => {
     getStatus().then(setFaq).catch(() => setError('Could not reach the EchoFAQ server.'))
+    // Prefetch Kokoro neural voice (~80MB once) so answers don't sound robotic.
+    warmNeuralTts()
   }, [])
 
   useEffect(() => {

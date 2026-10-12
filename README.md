@@ -2,7 +2,7 @@
 
 EchoFAQ is a browser-based, turn-by-turn voice FAQ assistant. Ask a question by voice (or type it), and it answers **only from one FAQ file** using local RAG. The reply streams in live and is spoken aloud sentence by sentence. If the FAQ doesn't cover the question, it says so instead of guessing.
 
-- **Frontend:** React (Vite) + Tailwind — "Signal Desk" UI, Web Speech API for STT/TTS, SSE client
+- **Frontend:** React (Vite) + Tailwind — Wavelength Studio UI, Web Speech STT, **Kokoro neural TTS** (natural American voice in-browser; Web Speech fallback), SSE client
 - **Backend:** FastAPI + LangChain + FAISS (in-memory index)
 - **Models:** local [Ollama](https://ollama.com) — chat `qwen2.5:7b`, embeddings `nomic-embed-text`
 - A bundled sample FAQ loads at startup; you can upload a `.txt` / `.md` file to replace it.
@@ -85,7 +85,7 @@ cd frontend && npx vitest run
 
 - **In-memory index:** the FAISS index is rebuilt at startup and replaced on upload; nothing is persisted across restarts.
 - **One FAQ at a time:** uploads (`.txt` / `.md`, 200–12,000 characters) replace the active FAQ.
-- **Chrome voice only:** speech recognition/synthesis uses the Web Speech API (`en-US`). Other browsers can still type questions and read streamed answers.
+- **Chrome recommended:** mic input uses Web Speech recognition (`en-US`). Spoken answers use **Kokoro** neural TTS in the browser (first visit downloads ~80MB from Hugging Face; then cached). Web Speech synthesis is only a fallback if Kokoro fails to load.
 - **Local models:** answer quality and latency depend on your hardware and the `qwen2.5:7b` / `nomic-embed-text` models; first requests may be slow while models load.
 - **No telephony:** browser only — no phone calls or WebRTC.
 

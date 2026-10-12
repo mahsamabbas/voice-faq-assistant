@@ -1,4 +1,9 @@
-/* Web Speech API helpers (recognition + synthesis). Chrome-first. */
+/* Web Speech API helpers (recognition + synthesis). Chrome-first.
+ * Synthesis prefers Kokoro neural TTS; Web Speech is the fallback. */
+
+import { cancelNeuralTts, speakNeural, warmNeuralTts } from './tts'
+
+export { warmNeuralTts }
 
 interface RecognitionResultLike {
   isFinal: boolean
@@ -161,6 +166,7 @@ export function createRecognizer(
 }
 
 export function cancelSpeech(): void {
+  cancelNeuralTts()
   if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
     window.speechSynthesis.cancel()
   }
@@ -181,21 +187,22 @@ function loadVoices(): Promise<SpeechSynthesisVoice[]> {
   })
 }
 
-/** Prefer a natural, lighter female English voice when the OS provides one. */
+/** Prefer a natural female English voice when the OS provides one (fallback TTS). */
 export function pickFemaleVoice(voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | null {
   const en = voices.filter((v) => v.lang.toLowerCase().startsWith('en'))
   const pool = en.length > 0 ? en : voices
   if (pool.length === 0) return null
 
   const preferred = [
+    /google us english/i,
+    /microsoft aria/i,
+    /microsoft jenny/i,
     /samantha/i,
-    /victoria/i,
     /karen/i,
     /moira/i,
+    /victoria/i,
     /tessa/i,
     /fiona/i,
-    /veena/i,
-    /raveena/i,
     /zira/i,
     /jenny/i,
     /aria/i,
@@ -214,13 +221,8 @@ export function pickFemaleVoice(voices: SpeechSynthesisVoice[]): SpeechSynthesis
   return soft ?? pool[0] ?? null
 }
 
-/** Queue sentences for TTS. Returns a promise that resolves when the last one ends. */
-export async function speakSentences(sentences: string[], muted: boolean): Promise<void> {
-  if (muted || typeof window === 'undefined' || !('speechSynthesis' in window)) {
-    return
-  }
-  const items = sentences.map((s) => s.trim()).filter(Boolean)
-  if (items.length === 0) return
+async function speakWebSpeech(items: string[]): Promise<void> {
+  if (typeof window === 'undefined' || !('speechSynthesis' in window)) return
 
   const voices = await loadVoices()
   const voice = pickFemaleVoice(voices)
@@ -230,9 +232,9 @@ export async function speakSentences(sentences: string[], muted: boolean): Promi
       const u = new SpeechSynthesisUtterance(text)
       u.lang = voice?.lang || 'en-US'
       if (voice) u.voice = voice
-      // Slightly brighter / lighter female delivery.
-      u.pitch = 1.18
-      u.rate = 1.02
+      // Keep pitch/rate near natural — high pitch sounds robotic.
+      u.pitch = 1
+      u.rate = 0.96
       u.volume = 1
       if (i === items.length - 1) {
         u.onend = () => resolve()
@@ -241,4 +243,14 @@ export async function speakSentences(sentences: string[], muted: boolean): Promi
       window.speechSynthesis.speak(u)
     })
   })
+}
+
+/** Queue sentences for TTS. Returns a promise that resolves when the last one ends. */
+export async function speakSentences(sentences: string[], muted: boolean): Promise<void> {
+  if (muted || typeof window === 'undefined') return
+  const items = sentences.map((s) => s.trim()).filter(Boolean)
+  if (items.length === 0) return
+
+  const usedNeural = await speakNeural(items)
+  if (!usedNeural) await speakWebSpeech(items)
 }
