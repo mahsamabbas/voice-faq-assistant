@@ -21,10 +21,10 @@ interface Message {
 }
 
 const STATUS: Record<OrbState, string> = {
-  idle: 'Tap the orb and ask your FAQ anything',
-  listening: 'Listening… tap again to send',
-  thinking: 'Finding the answer…',
-  speaking: 'Speaking…',
+  idle: 'Tap the mic — ask anything in your FAQ',
+  listening: 'Listening… tap again when you’re done',
+  thinking: 'Thinking…',
+  speaking: 'Speaking the answer…',
 }
 
 export default function App() {
@@ -251,110 +251,147 @@ export default function App() {
   const busy = state === 'thinking'
 
   return (
-    <div className="desk">
-      <header className="brand">
-        <h1 className="wordmark">
-          Echo<span>FAQ</span>
-        </h1>
-        <p className="tagline">
-          Voice answers from your own FAQ.
-          {faq ? ` Using ${faq.filename}.` : ''}
-        </p>
-      </header>
+    <>
+      <div className="atmosphere" aria-hidden="true">
+        <svg className="atmosphere__wave" viewBox="0 0 1200 280" preserveAspectRatio="none">
+          <path d="M0 160 C120 90, 220 230, 340 150 S560 60, 680 140 S920 240, 1200 120" />
+          <path d="M0 190 C140 120, 260 210, 400 170 S680 110, 820 180 S1040 220, 1200 160" />
+          <path d="M0 220 C180 180, 300 250, 460 200 S740 150, 900 210 S1080 240, 1200 200" />
+        </svg>
+      </div>
 
-      <main className="stage">
-        {!supported && (
-          <p className="banner" role="note">
-            Voice features work best in Chrome. Speech input or playback isn’t available here —
-            you can still type your questions.
+      <div className="desk">
+        <header className="brand">
+          <h1 className="wordmark">
+            Echo<em>FAQ</em>
+          </h1>
+          <p className="brand-meta">
+            Voice answers grounded in one FAQ file.
+            {faq ? (
+              <>
+                {' '}
+                <strong>{faq.filename}</strong>
+              </>
+            ) : null}
           </p>
-        )}
-        {error && (
-          <p className="banner error" role="alert">
-            {error}
-          </p>
-        )}
-        <button
-          type="button"
-          className={`orb${state === 'idle' ? '' : ` ${state}`}`}
-          aria-label="Microphone"
-          aria-pressed={state === 'listening'}
-          onClick={toggleMic}
-        >
-          <span className="orb-ring" aria-hidden="true" />
-          <span className="orb-ring r2" aria-hidden="true" />
-          <span className="orb-core" aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="9" y="3" width="6" height="11" rx="3" />
-              <path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
-            </svg>
-          </span>
-        </button>
-        <p className="status" role="status">{STATUS[state]}</p>
-      </main>
+        </header>
 
-      <section className={`ribbon${hasLog ? ' has-log' : ''}`} aria-label="Transcript">
-        <span className="ribbon-label">Transcript</span>
-        {hasLog ? (
-          <div className="log" ref={logRef}>
-            {messages.map((m) => (
-              <div key={m.id} className={`bubble ${m.role}`}>
-                {m.role === 'assistant' && m.refused !== undefined && (
-                  <span className={`tag${m.refused ? ' refused' : ''}`}>
-                    {m.refused ? 'Not in FAQ' : 'From FAQ'}
-                  </span>
-                )}
-                <p>{m.text || (m.role === 'assistant' ? '…' : '')}</p>
-              </div>
-            ))}
-            {partial && (
-              <div className="bubble user partial">
-                <p>{partial}</p>
-              </div>
-            )}
+        <main className="stage">
+          <div className="mic-panel">
+            <div className="banners">
+              {!supported && (
+                <p className="banner" role="note">
+                  Voice works best in Chrome. You can still type questions below.
+                </p>
+              )}
+              {error && (
+                <p className="banner error" role="alert">
+                  {error}
+                </p>
+              )}
+            </div>
+
+            <button
+              type="button"
+              className={`mic${state === 'idle' ? '' : ` ${state}`}`}
+              aria-label="Microphone"
+              aria-pressed={state === 'listening'}
+              onClick={toggleMic}
+            >
+              <span className="mic__glyph" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="9" y="2.5" width="6" height="12" rx="3" />
+                  <path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3.5M8.5 21.5h7" />
+                </svg>
+              </span>
+              <span className="mic__bars" aria-hidden="true">
+                <span /><span /><span /><span /><span />
+              </span>
+            </button>
+            <p className="status" role="status">
+              {STATUS[state]}
+            </p>
           </div>
-        ) : (
-          <p className="ribbon-empty">Your conversation will trace across here.</p>
-        )}
-      </section>
 
-      <nav className="rail" aria-label="Utilities">
-        <button
-          type="button"
-          className={`rail-btn${muted ? ' on' : ''}`}
-          aria-pressed={muted}
-          onClick={() => setMuted((m) => !m)}
-        >
-          {muted ? 'Unmute' : 'Mute'}
-        </button>
-        <input
-          ref={fileRef}
-          type="file"
-          accept=".txt,.md,text/plain,text/markdown"
-          hidden
-          onChange={onUpload}
-        />
-        <button
-          type="button"
-          className="rail-btn"
-          disabled={uploading}
-          onClick={() => fileRef.current?.click()}
-        >
-          {uploading ? 'Uploading…' : 'Upload FAQ'}
-        </button>
-        <form className="rail-type" onSubmit={onTypedSubmit}>
-          <input
-            type="text"
-            placeholder="Or type a question…"
-            aria-label="Type a question"
-            value={typed}
-            onChange={(e) => setTyped(e.target.value)}
-          />
-          <button type="submit" className="rail-btn go" disabled={busy || !typed.trim()}>
-            Send
+          <section className="convo" aria-label="Conversation">
+            <p className="convo__label">Live transcript</p>
+            {hasLog ? (
+              <div className="log" ref={logRef}>
+                {messages.map((m) => {
+                  const tone =
+                    m.role === 'assistant' && m.refused !== undefined
+                      ? m.refused
+                        ? ' no'
+                        : ' ok'
+                      : ''
+                  return (
+                    <article key={m.id} className={`turn ${m.role}${tone}`}>
+                      <p className="turn__who">{m.role === 'user' ? 'You' : 'EchoFAQ'}</p>
+                      {m.role === 'assistant' && m.refused !== undefined && (
+                        <span className={`tag${m.refused ? ' refused' : ''}`}>
+                          {m.refused ? 'Not in FAQ' : 'From FAQ'}
+                        </span>
+                      )}
+                      <p className="turn__text">
+                        {m.text || (m.role === 'assistant' ? '…' : '')}
+                      </p>
+                    </article>
+                  )
+                })}
+                {partial && (
+                  <article className="turn user partial">
+                    <p className="turn__who">You</p>
+                    <p className="turn__text">{partial}</p>
+                  </article>
+                )}
+              </div>
+            ) : (
+              <p className="convo__empty">
+                Ask about shipping, returns, hours…
+                <span>Your voice turns land here.</span>
+              </p>
+            )}
+          </section>
+        </main>
+
+        <nav className="composer" aria-label="Composer">
+          <button
+            type="button"
+            className={`ghost composer__mute${muted ? ' on' : ''}`}
+            aria-pressed={muted}
+            onClick={() => setMuted((m) => !m)}
+          >
+            {muted ? 'Unmute' : 'Mute'}
           </button>
-        </form>
-      </nav>
-    </div>
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".txt,.md,text/plain,text/markdown"
+            hidden
+            onChange={onUpload}
+          />
+          <button
+            type="button"
+            className="ghost composer__upload"
+            disabled={uploading}
+            onClick={() => fileRef.current?.click()}
+          >
+            {uploading ? 'Uploading…' : 'Upload FAQ'}
+          </button>
+          <form className="composer__form" onSubmit={onTypedSubmit}>
+            <input
+              type="text"
+              placeholder="Or type a question…"
+              aria-label="Type a question"
+              value={typed}
+              onChange={(e) => setTyped(e.target.value)}
+            />
+            <button type="submit" className="send" disabled={busy || !typed.trim()}>
+              Send
+            </button>
+          </form>
+        </nav>
+      </div>
+    </>
   )
 }
