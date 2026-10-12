@@ -20,15 +20,9 @@ interface Message {
   refused?: boolean
 }
 
-const STATUS: Record<OrbState, string> = {
-  idle: 'Tap the mic — ask anything in your FAQ',
-  listening: 'Listening… pause when you’re done and I’ll answer',
-  thinking: 'Thinking…',
-  speaking: 'Speaking the answer…',
-}
-
 export default function App() {
   const [state, setState] = useState<OrbState>('idle')
+  const [sessionActive, setSessionActive] = useState(false)
   const [muted, setMuted] = useState(false)
   const [messages, setMessages] = useState<Message[]>([])
   const [partial, setPartial] = useState('')
@@ -39,6 +33,7 @@ export default function App() {
   const supported = speechSupported()
 
   const mutedRef = useRef(muted)
+  const sessionRef = useRef(false)
   const recognizerRef = useRef<Recognizer | null>(null)
   const historyRef = useRef<HistoryMessage[]>([])
   const abortRef = useRef<AbortController | null>(null)
@@ -46,12 +41,13 @@ export default function App() {
   const nextId = useRef(1)
   const fileRef = useRef<HTMLInputElement>(null)
   const logRef = useRef<HTMLDivElement>(null)
+  const beginListeningRef = useRef<() => void>(() => {})
 
   useEffect(() => {
     mutedRef.current = muted
     if (muted) {
       cancelSpeech()
-      setState((s) => (s === 'speaking' ? 'idle' : s))
+      setState((s) => (s === 'speaking' ? 'thinking' : s))
     }
   }, [muted])
 
@@ -66,6 +62,7 @@ export default function App() {
 
   useEffect(
     () => () => {
+      sessionRef.current = false
       recognizerRef.current?.abort()
       abortRef.current?.abort()
       cancelSpeech()
@@ -80,11 +77,30 @@ export default function App() {
     cancelSpeech()
   }, [])
 
+  const endSession = useCallback(() => {
+    sessionRef.current = false
+    setSessionActive(false)
+    recognizerRef.current?.abort()
+    recognizerRef.current = null
+    stopEverything()
+    setPartial('')
+    setState('idle')
+  }, [stopEverything])
+
+  const resumeListening = useCallback(() => {
+    if (!sessionRef.current) {
+      setState('idle')
+      return
+    }
+    // Let the current turn unwind before opening the mic again.
+    window.setTimeout(() => beginListeningRef.current(), 280)
+  }, [])
+
   const submit = useCallback(
     async (raw: string) => {
       const question = raw.trim()
       if (!question) {
-        setState('idle')
+        resumeListening()
         return
       }
 
@@ -127,7 +143,9 @@ export default function App() {
           { role: 'assistant', content: answer },
         ]
         await Promise.all(pending)
-        if (current()) setState('idle')
+        if (!current()) return
+        // Keep the back-and-forth going until the user closes the session.
+        resumeListening()
       }
 
       await sendChat(
@@ -164,25 +182,28 @@ export default function App() {
             setMessages((all) =>
               all.filter((m) => !(m.id === assistantId && m.text === '')),
             )
-            setState('idle')
+            resumeListening()
           },
         },
         controller.signal,
       )
     },
-    [stopEverything],
+    [stopEverything, resumeListening],
   )
 
-  const toggleMic = () => {
-    if (state === 'listening') {
-      recognizerRef.current?.stop()
+  const beginListening = useCallback(() => {
+    if (!sessionRef.current) {
+      setState('idle')
       return
     }
     if (!supported) {
       setError('Voice input needs Chrome. You can still type your question below.')
+      endSession()
       return
     }
-    stopEverything()
+
+    recognizerRef.current?.abort()
+    recognizerRef.current = null
     setError('')
     setPartial('')
 
@@ -191,17 +212,31 @@ export default function App() {
       (text) => {
         recognizerRef.current = null
         setPartial('')
+        if (!sessionRef.current) {
+          setState('idle')
+          return
+        }
         void submit(text)
       },
       (message) => {
         recognizerRef.current = null
         setPartial('')
+        if (!sessionRef.current) {
+          setState('idle')
+          return
+        }
+        // Keep the session open through soft listening glitches.
+        if (/no speech/i.test(message)) {
+          resumeListening()
+          return
+        }
         setError(message)
-        setState('idle')
+        endSession()
       },
     )
     if (!rec) {
       setError('Speech recognition is not available in this browser.')
+      endSession()
       return
     }
     recognizerRef.current = rec
@@ -211,7 +246,26 @@ export default function App() {
     } catch {
       recognizerRef.current = null
       setError('Could not start the microphone.')
+      endSession()
     }
+  }, [supported, submit, endSession, resumeListening])
+
+  beginListeningRef.current = beginListening
+
+  const toggleMic = () => {
+    // One tap starts an open conversation; the next tap closes it.
+    if (sessionRef.current) {
+      endSession()
+      return
+    }
+    if (!supported) {
+      setError('Voice input needs Chrome. You can still type your question below.')
+      return
+    }
+    sessionRef.current = true
+    setSessionActive(true)
+    stopEverything()
+    beginListening()
   }
 
   const onTypedSubmit = (e: React.FormEvent) => {
@@ -221,6 +275,11 @@ export default function App() {
     recognizerRef.current?.abort()
     recognizerRef.current = null
     setTyped('')
+    // Typing joins the same ongoing voice session when one is open.
+    if (!sessionRef.current) {
+      sessionRef.current = true
+      setSessionActive(true)
+    }
     void submit(text)
   }
 
@@ -232,14 +291,11 @@ export default function App() {
     setError('')
     try {
       const next = await uploadFaq(file)
-      stopEverything()
-      recognizerRef.current?.abort()
-      recognizerRef.current = null
+      endSession()
       historyRef.current = []
       setMessages([])
       setPartial('')
       setFaq(next)
-      setState('idle')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Upload failed.')
     } finally {
@@ -247,9 +303,26 @@ export default function App() {
     }
   }
 
+  const statusText = !sessionActive
+    ? 'Tap the mic to start a voice chat'
+    : state === 'listening'
+      ? 'Listening… pause when done — tap mic to end chat'
+      : state === 'thinking'
+        ? 'Thinking…'
+        : state === 'speaking'
+          ? 'Speaking… I’ll listen again after this'
+          : 'Starting next turn…'
+
   const listening = state === 'listening'
   const hasLog = messages.length > 0 || partial !== '' || listening
   const busy = state === 'thinking'
+  const micClass = [
+    'mic',
+    state !== 'idle' ? state : sessionActive ? 'thinking' : '',
+    sessionActive ? 'session' : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
 
   return (
     <>
@@ -294,9 +367,9 @@ export default function App() {
 
             <button
               type="button"
-              className={`mic${state === 'idle' ? '' : ` ${state}`}`}
-              aria-label="Microphone"
-              aria-pressed={state === 'listening'}
+              className={micClass}
+              aria-label={sessionActive ? 'End voice chat' : 'Start voice chat'}
+              aria-pressed={sessionActive}
               onClick={toggleMic}
             >
               <span className="mic__glyph" aria-hidden="true">
@@ -310,8 +383,11 @@ export default function App() {
               </span>
             </button>
             <p className="status" role="status">
-              {STATUS[state]}
+              {statusText}
             </p>
+            {sessionActive && (
+              <p className="session-hint">Voice chat open — tap mic anytime to close</p>
+            )}
             {listening && (
               <p className="live-caption" aria-live="polite">
                 {partial || 'Hearing you…'}
