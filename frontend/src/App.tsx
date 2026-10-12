@@ -49,7 +49,10 @@ export default function App() {
 
   useEffect(() => {
     mutedRef.current = muted
-    if (muted) cancelSpeech()
+    if (muted) {
+      cancelSpeech()
+      setState((s) => (s === 'speaking' ? 'idle' : s))
+    }
   }, [muted])
 
   useEffect(() => {

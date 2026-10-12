@@ -132,5 +132,5 @@ export async function sendChat(
     return
   }
 
-  if (!finished) handlers.onDone(false)
+  if (!finished) handlers.onError('The answer stream ended unexpectedly.')
 }
