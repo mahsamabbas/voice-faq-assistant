@@ -97,10 +97,11 @@ export default function App() {
   }, [])
 
   const submit = useCallback(
-    async (raw: string) => {
+    async (raw: string, opts: { speak: boolean } = { speak: true }) => {
       const question = raw.trim()
       if (!question) {
-        resumeListening()
+        if (opts.speak) resumeListening()
+        else setState('idle')
         return
       }
 
@@ -108,6 +109,7 @@ export default function App() {
       const turn = turnRef.current
       const controller = new AbortController()
       abortRef.current = controller
+      const shouldSpeak = opts.speak
 
       const history = trimHistory(historyRef.current)
       const assistantId = nextId.current + 1
@@ -127,7 +129,8 @@ export default function App() {
       const pending: Promise<void>[] = []
 
       const speak = (sentences: string[]) => {
-        if (mutedRef.current || sentences.length === 0) return
+        // Typed questions stay text-only; voice turns still get TTS.
+        if (!shouldSpeak || mutedRef.current || sentences.length === 0) return
         if (current()) setState('speaking')
         pending.push(speakSentences(sentences, false))
       }
@@ -144,8 +147,12 @@ export default function App() {
         ]
         await Promise.all(pending)
         if (!current()) return
-        // Keep the back-and-forth going until the user closes the session.
-        resumeListening()
+        if (sessionRef.current) {
+          // Open voice session continues (typed answers stay silent).
+          resumeListening()
+          return
+        }
+        setState('idle')
       }
 
       await sendChat(
@@ -182,7 +189,8 @@ export default function App() {
             setMessages((all) =>
               all.filter((m) => !(m.id === assistantId && m.text === '')),
             )
-            resumeListening()
+            if (sessionRef.current) resumeListening()
+            else setState('idle')
           },
         },
         controller.signal,
@@ -216,7 +224,7 @@ export default function App() {
           setState('idle')
           return
         }
-        void submit(text)
+        void submit(text, { speak: true })
       },
       (message) => {
         recognizerRef.current = null
@@ -272,15 +280,11 @@ export default function App() {
     e.preventDefault()
     const text = typed.trim()
     if (!text) return
+    // Typed turns never speak — pause voice listening for this answer only.
     recognizerRef.current?.abort()
     recognizerRef.current = null
     setTyped('')
-    // Typing joins the same ongoing voice session when one is open.
-    if (!sessionRef.current) {
-      sessionRef.current = true
-      setSessionActive(true)
-    }
-    void submit(text)
+    void submit(text, { speak: false })
   }
 
   const onUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
