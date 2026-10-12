@@ -227,3 +227,47 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .orb *, .orb { animation: none !important; }
 }
+
+/* ── Banners ── */
+.banner {
+  margin: 0;
+  max-width: 34rem;
+  text-align: center;
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--ink);
+  background: color-mix(in srgb, var(--lime) 35%, white);
+  border: 1.5px solid var(--ink);
+  border-radius: 12px;
+  padding: 0.55rem 0.9rem;
+}
+.banner.error { background: #ffe1dc; border-color: #b3261e; color: #7a1812; }
+
+/* ── Conversation log inside the ribbon ── */
+.ribbon.has-log { align-items: flex-start; border-radius: 24px; }
+.log {
+  flex: 1;
+  min-width: 0;
+  max-height: 14rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+.bubble { max-width: 85%; padding: 0.5rem 0.9rem; border-radius: 16px; font-weight: 500; }
+.bubble p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.bubble.user { align-self: flex-end; background: var(--ink); color: #e8eef2; }
+.bubble.user.partial { opacity: 0.6; }
+.bubble.assistant { align-self: flex-start; background: #fff; border: 1.5px solid rgba(26, 34, 40, 0.14); }
+.tag {
+  display: inline-block;
+  margin-bottom: 0.25rem;
+  font: 700 0.65rem var(--font-display);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 0.12rem 0.5rem;
+  border-radius: 999px;
+  background: var(--lime);
+  color: var(--ink);
+}
+.tag.refused { background: #ffe1dc; color: #7a1812; }
