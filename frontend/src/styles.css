@@ -250,6 +250,21 @@ body {
   color: var(--ink-soft);
 }
 
+.live-caption {
+  margin: 0;
+  width: min(100%, 18rem);
+  min-height: 2.6em;
+  padding: 0.65rem 0.85rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+}
+
 .banners {
   display: flex;
   flex-direction: column;
@@ -277,7 +292,7 @@ body {
 
 /* Conversation — no chat-card chrome */
 .convo {
-  min-height: 0;
+  min-height: 12rem;
   display: flex;
   flex-direction: column;
   border-top: 1px solid var(--line);
@@ -358,7 +373,11 @@ body {
 .turn.assistant.ok .turn__text { border-left-color: var(--accent); }
 .turn.assistant.no .turn__text { border-left-color: var(--warn); }
 
-.turn.partial .turn__text { opacity: 0.55; }
+.turn.partial .turn__text { opacity: 0.75; }
+.turn.live .turn__text {
+  opacity: 1;
+  color: var(--accent);
+}
 
 .tag {
   display: inline-block;

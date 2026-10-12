@@ -247,7 +247,8 @@ export default function App() {
     }
   }
 
-  const hasLog = messages.length > 0 || partial !== ''
+  const listening = state === 'listening'
+  const hasLog = messages.length > 0 || partial !== '' || listening
   const busy = state === 'thinking'
 
   return (
@@ -311,6 +312,11 @@ export default function App() {
             <p className="status" role="status">
               {STATUS[state]}
             </p>
+            {listening && (
+              <p className="live-caption" aria-live="polite">
+                {partial || 'Hearing you…'}
+              </p>
+            )}
           </div>
 
           <section className="convo" aria-label="Conversation">
@@ -338,10 +344,10 @@ export default function App() {
                     </article>
                   )
                 })}
-                {partial && (
-                  <article className="turn user partial">
-                    <p className="turn__who">You</p>
-                    <p className="turn__text">{partial}</p>
+                {listening && (
+                  <article className="turn user partial live">
+                    <p className="turn__who">You · live</p>
+                    <p className="turn__text">{partial || '…'}</p>
                   </article>
                 )}
               </div>

@@ -53,12 +53,17 @@ export function createRecognizer(
   if (!Ctor) return null
   const rec = new Ctor()
   rec.lang = 'en-US'
-  rec.continuous = false
+  // Keep the session open until the user clicks stop (click-to-talk).
+  // continuous=false often ends on a short pause and starves interim/live text.
+  rec.continuous = true
   rec.interimResults = true
+  // Chrome: prefer fresh results while the mic is held open.
+  ;(rec as RecognitionLike & { maxAlternatives?: number }).maxAlternatives = 1
 
   let finalText = ''
   let delivered = false
   let failed = false
+  let stopping = false
 
   const deliver = () => {
     if (delivered) return
@@ -70,13 +75,18 @@ export function createRecognizer(
     let interim = ''
     for (let i = e.resultIndex; i < e.results.length; i++) {
       const r = e.results[i]
-      if (r.isFinal) finalText += r[0].transcript
-      else interim += r[0].transcript
+      const piece = r[0]?.transcript ?? ''
+      if (r.isFinal) finalText += piece
+      else interim += piece
     }
-    onPartial((finalText + interim).trim())
+    const live = `${finalText}${interim}`.replace(/\s+/g, ' ').trim()
+    onPartial(live)
   }
   rec.onerror = (e) => {
     if (e.error === 'aborted') return
+    // With continuous=true Chrome sometimes fires "no-speech" between phrases;
+    // ignore that unless the user already asked to stop.
+    if (e.error === 'no-speech' && !stopping) return
     failed = true
     delivered = true
     if (e.error === 'no-speech') onError('No speech detected. Try again.')
@@ -85,6 +95,15 @@ export function createRecognizer(
     else onError(`Speech recognition error: ${e.error}`)
   }
   rec.onend = () => {
+    // If Chrome auto-stops mid-session, restart until the user clicks stop/abort.
+    if (!stopping && !failed && !delivered) {
+      try {
+        rec.start()
+        return
+      } catch {
+        // fall through to deliver whatever we have
+      }
+    }
     if (!failed) deliver()
   }
 
@@ -93,10 +112,15 @@ export function createRecognizer(
       finalText = ''
       delivered = false
       failed = false
+      stopping = false
       rec.start()
     },
-    stop: () => rec.stop(),
+    stop: () => {
+      stopping = true
+      rec.stop()
+    },
     abort: () => {
+      stopping = true
       delivered = true
       rec.abort()
     },
